@@ -220,10 +220,18 @@ def train_and_evaluate(model_name: str, epochs: int = 5) -> dict:
         validation_data=val_ds,
         epochs=epochs,
         callbacks=callbacks,
-        verbose=1,
+        verbose=2,
     )
     train_time_s = time.perf_counter() - t_train_start
     epochs_run   = len(history.history["loss"])
+
+    # Save the trained model so later experiments (e.g. the agent) can use it
+    # as a starting point or as a reference for comparison.
+    models_dir = Path("trained_models")
+    models_dir.mkdir(exist_ok=True)
+    weights_path = models_dir / f"{model_name}.keras"
+    model.save(weights_path)
+    print(f"  Saved trained model to: {weights_path}")
 
     # Inference latency
     print(f"  Measuring inference latency...")
@@ -298,7 +306,7 @@ def train_and_evaluate(model_name: str, epochs: int = 5) -> dict:
 # %% ──────────────────────────────────────────────────────────────────────
 # Cell 3: Run all four and assemble the table
 # ─────────────────────────────────────────────────────────────────────────
-EPOCHS = 3  # same for all models for a fair comparison
+EPOCHS = 5  # same for all models for a fair comparison
 
 results = []
 for model_name in MODEL_BUILDERS.keys():
