@@ -1,0 +1,78 @@
+"""
+Experiment 1 (EDA Agent)
+    baseline      = crnn_lstm  (loaded from trained_models/crnn_lstm.keras)
+    loss          = weighted_bce
+    augmentation  = background_mix
+    optimizer     = adamw
+    schedule      = cosine_decay
+    initial_lr    = 0.0005
+    geo_scale_km  = 500
+
+Generated at 2026-05-17 01:23:51
+Rationale:
+    The configuration targets the three most critical weaknesses identified in the EDA: class imbalance, domain shift, and generalization. Using `weighted_bce` directly mitigates the structural issue of the metric (Finding 1), which penalizes poorly-modeled, rare non-bird classes. `background_mix` addresses the spectral domain shift (Finding 3) by simulating the continuous soundscape condition of the test set. Finally, setting `geo_scale_km` to 500 aggressively weights the training data toward the Pantanal wetlands (Finding 5), forcing the model to learn the local ecology. The moderate learning rate, `adamw`, and `cosine_decay` provide a stable, robust fine-tuning process.
+
+Self-contained: build_model(), get_loss(), get_optimizer(),
+get_schedule_callbacks(), augment_batch(), get_geo_scale_km().
+"""
+import numpy as np
+import keras
+from keras import layers, ops
+
+NUM_CLASSES        = 234
+LEARNING_RATE      = 0.0005
+STEPS_PER_EPOCH    = 86
+TOTAL_TRAIN_STEPS  = 860
+WINNER_KERAS_PATH  = "trained_models/crnn_lstm.keras"
+GEO_SCALE_KM       = 500     # None or a float in km
+
+
+# ── Architecture: warm-start from the winning baseline ──────────────────
+def build_model() -> keras.Model:
+    return keras.models.load_model(WINNER_KERAS_PATH)
+
+
+# ── Loss ────────────────────────────────────────────────────────────────
+POS_WEIGHTS = np.load("experiments_eda_gemma4/class_pos_weights.npy").astype("float32")
+
+class WeightedBCE(keras.losses.Loss):
+    def __init__(self, pos_weights, name="weighted_bce"):
+        super().__init__(name=name)
+        self.pos_weights = ops.convert_to_tensor(pos_weights)
+    def call(self, y_true, y_pred):
+        y_pred = ops.clip(y_pred, 1e-7, 1.0 - 1e-7)
+        per_class = -(self.pos_weights * y_true * ops.log(y_pred)
+                      + (1.0 - y_true) * ops.log(1.0 - y_pred))
+        return ops.mean(per_class)
+
+
+def get_loss():
+    return WeightedBCE(POS_WEIGHTS)
+
+
+# ── Optimizer + LR schedule ─────────────────────────────────────────────
+def get_optimizer():
+    return keras.optimizers.AdamW(learning_rate=keras.optimizers.schedules.CosineDecay(initial_learning_rate=LEARNING_RATE, decay_steps=TOTAL_TRAIN_STEPS, alpha=0.0), weight_decay=1e-4)
+
+
+def get_schedule_callbacks():
+    return []
+
+
+# ── Augmentation (applied to (xs, ys) batches at training time) ─────────
+def augment_batch(xs, ys):
+    """Add a low-volume second sample as background. Simulates the
+    Pantanal soundscape condition where target calls overlap with a
+    continuous chorus (EDA finding 3)."""
+    if len(xs) < 2:
+        return xs, ys
+    bg_weight = float(np.random.uniform(0.05, 0.20))
+    idx = np.random.permutation(len(xs))
+    xs_m = (1.0 - bg_weight) * xs + bg_weight * xs[idx]
+    return xs_m.astype(np.float32), ys
+
+
+# ── Geographic sample weighting ─────────────────────────────────────────
+def get_geo_scale_km():
+    """Return the chosen geographic scale (km) or None for no weighting."""
+    return GEO_SCALE_KM
