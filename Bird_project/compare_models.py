@@ -27,6 +27,7 @@ Run:   python compare_models.py
 # ─── Backend selection (must come before keras import) ──────────────────
 import os
 os.environ.setdefault("KERAS_BACKEND", "torch")
+os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")  # RNN layers need CPU fallback on Apple Silicon
 
 import time
 import warnings
@@ -39,6 +40,8 @@ from keras import layers
 from sklearn.metrics import roc_auc_score
 
 warnings.filterwarnings("ignore")
+
+print("Starting compare_models.py — full 6-model overnight run", flush=True)
 
 # Reuse the data pipeline from baseline.py — single source of truth
 # (this also re-runs Cells 1-6 of baseline.py: builds the table, splits,
@@ -154,12 +157,81 @@ def build_efficientnet_b0() -> keras.Model:
     )
 
 
+def build_crnn_lstm() -> keras.Model:
+    """CRNN model: CNN front-end + LSTM temporal layer.
+
+    The CNN extracts local time-frequency patterns from the log-mel
+    spectrogram. We then average over the frequency axis and let the LSTM
+    model the remaining time sequence before the multi-label sigmoid head.
+    """
+    inputs = keras.Input(shape=INPUT_SHAPE)
+
+    x = layers.Conv2D(32, 3, padding="same", use_bias=False)(inputs)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
+
+    x = layers.Conv2D(64, 3, padding="same", use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
+
+    x = layers.Conv2D(128, 3, padding="same", use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+
+    # Convert image-like CNN features into a sequence over time.
+    # Shape: (batch, freq, time, channels) -> (batch, time, freq * channels)
+    x = layers.Permute((2, 1, 3))(x)
+    x = layers.Reshape((x.shape[1], x.shape[2] * x.shape[3]))(x)
+
+    x = layers.Bidirectional(layers.LSTM(64, return_sequences=False))(x)
+    x = layers.Dropout(0.3)(x)
+    outputs = layers.Dense(NUM_CLASSES, activation="sigmoid")(x)
+    return keras.Model(inputs, outputs, name="crnn_lstm")
+
+
+def build_crnn_gru() -> keras.Model:
+    """CRNN model: CNN front-end + GRU temporal layer.
+
+    GRU is similar to LSTM but lighter, so it is often a better first
+    recurrent option under a CPU-only runtime constraint.
+    """
+    inputs = keras.Input(shape=INPUT_SHAPE)
+
+    x = layers.Conv2D(32, 3, padding="same", use_bias=False)(inputs)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
+
+    x = layers.Conv2D(64, 3, padding="same", use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
+
+    x = layers.Conv2D(128, 3, padding="same", use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+
+    # Convert image-like CNN features into a sequence over time.
+    x = layers.Permute((2, 1, 3))(x)
+    x = layers.Reshape((x.shape[1], x.shape[2] * x.shape[3]))(x)
+
+    x = layers.Bidirectional(layers.GRU(64, return_sequences=False))(x)
+    x = layers.Dropout(0.3)(x)
+    outputs = layers.Dense(NUM_CLASSES, activation="sigmoid")(x)
+    return keras.Model(inputs, outputs, name="crnn_gru")
+
+
 MODEL_BUILDERS = {
     "baseline_cnn":      build_baseline_cnn,
     "bigger_cnn":        build_bigger_cnn,
     "mobilenetv3_small": build_mobilenetv3_small,
     "efficientnet_b0":   build_efficientnet_b0,
+    "crnn_lstm":         build_crnn_lstm,
+    "crnn_gru":          build_crnn_gru,
 }
+
 
 
 # %% ──────────────────────────────────────────────────────────────────────
@@ -306,7 +378,7 @@ def train_and_evaluate(model_name: str, epochs: int = 5) -> dict:
 # %% ──────────────────────────────────────────────────────────────────────
 # Cell 3: Run all four and assemble the table
 # ─────────────────────────────────────────────────────────────────────────
-EPOCHS = 5  # same for all models for a fair comparison
+EPOCHS = 10  # overnight full comparison run
 
 results = []
 for model_name in MODEL_BUILDERS.keys():

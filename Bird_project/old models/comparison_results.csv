@@ -1,0 +1,5 @@
+model,params,epochs_run,train_time_s,latency_ms,est_total_inf_min,macro_auc,n_classes_eval,aves_auc,amphibia_auc,insecta_auc,mammalia_auc
+baseline_cnn,123530,3,288.0,15.0,2.1,0.5321,30,0.455,0.7,0.4171,0.3967
+bigger_cnn,616234,3,2785.5,54.7,7.7,0.6659,30,0.4972,0.745,0.7396,0.8167
+mobilenetv3_small,1074138,3,373.5,89.7,12.6,0.4729,30,0.4843,0.5724,0.2899,0.51
+efficientnet_b0,4349325,3,1028.4,145.5,20.4,0.6652,30,0.5677,0.7467,0.6834,0.64

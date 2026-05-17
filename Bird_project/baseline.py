@@ -105,6 +105,16 @@ IDX_TO_TAXON = {
 print(f"Taxon distribution in label space: "
       f"{pd.Series(list(IDX_TO_TAXON.values())).value_counts().to_dict()}")
 
+# Per-taxon class-count weights, used for weighted macro AUC.
+# Weight for each taxon = (number of classes in that taxon) / 234.
+# This approximates "what fraction of the test set's evaluable classes are
+# of this taxon", and lets us compute a metric that gives Aves (162 classes)
+# much more weight than Reptilia (1 class).
+TAXON_COUNTS = pd.Series(list(IDX_TO_TAXON.values())).value_counts().to_dict()
+TAXON_WEIGHTS = {t: c / NUM_CLASSES for t, c in TAXON_COUNTS.items()}
+print(f"Per-taxon class-count weights: "
+      f"{ {t: round(w, 3) for t, w in TAXON_WEIGHTS.items()} }")
+
 
 # %% ──────────────────────────────────────────────────────────────────────
 # Cell 3: Build the training table (focal + soundscape segments)
@@ -144,25 +154,36 @@ def build_training_table() -> pd.DataFrame:
       labels   — list of species codes present in this example
       source   — 'focal' or 'soundscape'
       primary  — primary species (used for stratified split)
+      latitude, longitude — geographic coordinates (NaN if unknown).
+                Used by the EDA agent for sample weighting toward the
+                Pantanal test region. Regular/Conservative agents ignore
+                these columns; adding them is purely additive.
     """
     rows = []
 
     # 1. Focal recordings
     train_csv = pd.read_csv(TRAIN_CSV)
+    has_lat = "latitude"  in train_csv.columns
+    has_lon = "longitude" in train_csv.columns
     for r in train_csv.itertuples(index=False):
         labs = [str(r.primary_label)] + parse_secondary(getattr(r, "secondary_labels", []))
         labs = [l for l in labs if l in LABEL_TO_IDX]
         if not labs:
             continue
+        lat = float(getattr(r, "latitude",  np.nan)) if has_lat else np.nan
+        lon = float(getattr(r, "longitude", np.nan)) if has_lon else np.nan
         rows.append({
-            "path":    str(TRAIN_AUDIO_DIR / r.filename),
-            "start":   np.nan,
-            "labels":  sorted(set(labs)),
-            "source":  "focal",
-            "primary": str(r.primary_label),
+            "path":      str(TRAIN_AUDIO_DIR / r.filename),
+            "start":     np.nan,
+            "labels":    sorted(set(labs)),
+            "source":    "focal",
+            "primary":   str(r.primary_label),
+            "latitude":  lat,
+            "longitude": lon,
         })
 
-    # 2. Labeled soundscape segments
+    # 2. Labeled soundscape segments — these come from the Pantanal already,
+    # so geographic weighting treats their NaN coords as "in-domain" (weight=1).
     if SOUNDSCAPE_LABELS.exists():
         ss = pd.read_csv(SOUNDSCAPE_LABELS)
         for r in ss.itertuples(index=False):
@@ -171,11 +192,13 @@ def build_training_table() -> pd.DataFrame:
             if not labs:
                 continue
             rows.append({
-                "path":    str(SOUNDSCAPE_DIR / r.filename),
-                "start":   parse_time_to_seconds(r.start),
-                "labels":  sorted(set(labs)),
-                "source":  "soundscape",
-                "primary": labs[0],
+                "path":      str(SOUNDSCAPE_DIR / r.filename),
+                "start":     parse_time_to_seconds(r.start),
+                "labels":    sorted(set(labs)),
+                "source":    "soundscape",
+                "primary":   labs[0],
+                "latitude":  np.nan,
+                "longitude": np.nan,
             })
 
     table = pd.DataFrame(rows)
@@ -186,6 +209,10 @@ def build_training_table() -> pd.DataFrame:
     after = len(table)
     print(f"Built training table: {after} rows ({before - after} dropped for missing files)")
     print(f"  source breakdown:\n{table['source'].value_counts().to_string()}")
+    # Geo-metadata coverage summary (informational — used by EDA agent)
+    n_with_geo = int(table[["latitude", "longitude"]].notna().all(axis=1).sum())
+    print(f"  rows with (lat, lon) metadata: {n_with_geo} / {after} "
+          f"({100 * n_with_geo / max(after, 1):.1f}%)")
     return table
 
 
@@ -279,7 +306,7 @@ def split_train_val(
 train_rows, val_rows = split_train_val(
     table,
     n_val_soundscape_files=7,
-    focal_val_frac=0.0,    # set to e.g. 0.02 if val ends up too sparse
+    focal_val_frac=0.05,    # add ~5% of focal recordings to val for bird coverage
     seed=cfg.seed,
 )
 
