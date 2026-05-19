@@ -1,0 +1,56 @@
+{
+  "id": 4,
+  "agent_name": "creative",
+  "llm_model": "qwen2.5-coder:7b",
+  "llm_run_id": "qwen2.5-coder_7b",
+  "experiments_dir": "experiments_creative_qwen2.5-coder_7b",
+  "recipe_name": "fallback_smoothed_bce_timeshift",
+  "recipe_signature": "9d6dd03ef8a5",
+  "source": "fallback",
+  "loss": "binary cross-entropy with label smoothing",
+  "aug": "time shift",
+  "lr": 0.0005,
+  "optimizer": "Adam",
+  "schedule": "cosine decay",
+  "reason": "Fallback free-form recipe: mild label smoothing and time shifts probe whether the baseline benefits from calibration and invariance.",
+  "baseline_winner": "crnn_lstm",
+  "baseline_macro_auc": 0.6597,
+  "baseline_val_auc": 0.2872891128063202,
+  "pruned": false,
+  "params": 2253962,
+  "epochs_run": 10,
+  "train_time_s": 926.1,
+  "macro_auc": 0.6324,
+  "weighted_macro_auc": 0.6593,
+  "n_classes_eval": 125,
+  "aves_auc": 0.5997,
+  "amphibia_auc": 0.821,
+  "insecta_auc": 0.7268,
+  "mammalia_auc": 0.9226,
+  "py_path": "experiments_creative_qwen2.5-coder_7b/exp_004_fallback_smoothed_bce_timeshift_lr0.0005/model.py",
+  "weights_path": "experiments_creative_qwen2.5-coder_7b/exp_004_fallback_smoothed_bce_timeshift_lr0.0005/model.keras",
+  "loss_code": "# Built-in BCE with label smoothing.",
+  "loss_factory": "keras.losses.BinaryCrossentropy(label_smoothing=0.02)",
+  "optimizer_schedule_code": "def get_optimizer():\n    lr = keras.optimizers.schedules.CosineDecay(\n        initial_learning_rate=LEARNING_RATE,\n        decay_steps=TOTAL_TRAIN_STEPS,\n        alpha=0.1,\n    )\n    return keras.optimizers.Adam(learning_rate=lr)\n\n\ndef get_schedule_callbacks():\n    return []",
+  "augmentation_code": "def augment_batch(xs, ys):\n    xs = xs.copy()\n    _, _, w, _ = xs.shape\n    max_shift = max(1, w // 12)\n    for i in range(len(xs)):\n        shift = int(np.random.randint(-max_shift, max_shift + 1))\n        xs[i] = np.roll(xs[i], shift=shift, axis=1)\n    return xs, ys",
+  "llm_attempts": [
+    {
+      "attempt": 1,
+      "status": "error",
+      "error": "JSONDecodeError: Expecting ',' delimiter: line 9 column 18 (char 479)",
+      "raw_response": "{\n  \"recipe_name\": \"focal_asymmetric_loss_with_custom_spec_augment\",\n  \"loss_name\": \"Focal Asymmetric Loss with Custom SpecAugment\",\n  \"augmentation_name\": \"Custom SpecAugment with Time-Domain Distortion\",\n  \"optimizer_name\": \"AdamW with Weight Decay\",\n  \"schedule_name\": \"Cosine Annealing with Warmup\",\n  \"initial_lr\": 0.0003,\n  \"reason\": \"Combining asymmetric focal loss with custom SpecAugment and cosine annealing to explore new regularization techniques.\",\n  \"loss_code\": \"\"\"\nimport numpy as np\nfrom keras import ops\n\ndef focal_asymmetric_loss(y_true, y_pred, gamma=2.0, alpha=0.5):\n    pt = ops.clip(y_pred, 1e-15, 1 - 1e-15)\n    loss = -alpha * (1 - pt) ** gamma * ops.log(pt) - (1 - alpha) * pt ** gamma * ops.log(1 - pt)\n    return ops.mean(loss, axis=-1)\n\ndef asymmetric_focal_loss(gamma=2.0, alpha=0.5):\n    def loss(y_true, y_pred):\n        return focal_asymmetric_loss(y_true, y_pred, gamma, alpha)\n    return loss\n\"\"\",\n  \"loss_factory\": \"asymmetric_focal_loss(gamma=2.0, alpha=0.5)\",\n  \"optimizer_schedule_code\": \"\"\"\ndef get_optimizer():\n    optimizer = keras.optimizers.AdamW(learning_rate=LEARNING_RATE, weight_decay=1e-4)\n    return optimizer\n\ndef get_schedule_callbacks():\n    callbacks = [\n        keras.callbacks.CosineAnnealingLR(\n            learning_rate=LEARNING_RATE,\n            steps_per_epoch=STEPS_PER_EPOCH,\n            total_epochs=TOTAL_TRAIN_STEPS\n        ),\n        keras.callbacks.ReduceLROnPlateau(\n            monitor='val_loss',\n            factor=0.5,\n            patience=3,\n            min_lr=1e-6\n        )\n    ]\n    return callbacks\n\"\"\",\n  \"augmentation_code\": \"\"\"\nimport numpy as np\n\ndef augment_batch(xs, ys):\n    # Custom SpecAugment with time-domain distortion\n    for i in range(xs.shape[0]):\n        # Time-Domain Distortion\n        xs[i] = apply_time_domain_distortion(xs[i])\n        \n        # Frequency-Domain Masking\n        xs[i] = apply_frequency_domain_masking(xs[i], num_masks=2, mask_width=3)\n    \n    return xs, ys\n\ndef apply_time_domain_distortion(x):\n    # Example: Add Gaussian noise\n    noise = np.random.normal(0, 0.01, x.shape)\n    x += noise\n    return x\n\ndef apply_frequency_domain_masking(x, num_masks, mask_width):\n    X = np.fft.rfft2(x)\n    for _ in range(num_masks):\n        h, w = X.shape[-2:]\n        start_h = np.random.randint(0, h - mask_width)\n        start_w = np.random.randint(0, w - mask_width)\n        X[start_h:start_h + mask_width, start_w:start_w + mask_width] = 0\n    x = np.fft.irfft2(X).real\n    return x\n\"\"\"\n}"
+    },
+    {
+      "attempt": 2,
+      "status": "error",
+      "error": "JSONDecodeError: Expecting ',' delimiter: line 9 column 18 (char 468)",
+      "raw_response": "```json\n{\n  \"recipe_name\": \"focal_loss_with_augmentation\",\n  \"loss_name\": \"Focal Loss with Asymmetric Weights\",\n  \"augmentation_name\": \"Time-Domain SpecAugment\",\n  \"optimizer_name\": \"AdamW with Warmup and Cosine Decay\",\n  \"schedule_name\": \"Cosine Decay with Warmup\",\n  \"initial_lr\": 0.001,\n  \"reason\": \"Combining focal loss for handling class imbalance, asymmetric weights, and time-domain SpecAugment to introduce temporal variability in the spectrograms.\",\n  \"loss_code\": \"\"\"\nimport numpy as np\n\nclass AsymmetricFocalLoss(keras.losses.Loss):\n    def __init__(self, gamma=2.0, alpha=0.25, from_logits=False, name='asymmetric_focal_loss'):\n        super(AsymmetricFocalLoss, self).__init__(name=name)\n        self.gamma = gamma\n        self.alpha = alpha\n        self.from_logits = from_logits\n\n    def call(self, y_true, y_pred):\n        if not self.from_logits:\n            y_pred = ops.sigmoid(y_pred)\n\n        pt_1 = ops.where(ops.equal(y_true, 1), y_pred, 1 - y_pred)\n        pt_0 = ops.where(ops.equal(y_true, 0), y_pred, 1 - y_pred)\n\n        alpha_factor = ops.ones_like(y_true) * self.alpha\n        alpha_factor = ops.where(ops.equal(y_true, 1), alpha_factor, 1 - alpha_factor)\n\n        modulating_factor = (1.0 - pt_1) ** self.gamma\n\n        loss = -alpha_factor * modulating_factor * ops.log(pt_1)\n        return ops.reduce_mean(loss)\n\"\"\",\n  \"loss_factory\": \"AsymmetricFocalLoss(gamma=2.0, alpha=0.25)\",\n  \"optimizer_schedule_code\": \"\"\"\ndef get_optimizer():\n    optimizer = keras.optimizers.AdamW(learning_rate=initial_lr, weight_decay=1e-4)\n    return optimizer\n\ndef get_schedule_callbacks():\n    callbacks = [\n        keras.callbacks.CosineDecayLearningRate(initial_learning_rate=initial_lr,\n                                               decay_steps=int(TOTAL_TRAIN_STEPS * 0.8),\n                                               name='cosine_decay'),\n        keras.callbacks.LearningRateScheduler(lambda epoch: initial_lr * (0.95 ** epoch), name='warmup')\n    ]\n    return callbacks\n\"\"\",\n  \"augmentation_code\": \"\"\"\nimport numpy as np\n\ndef augment_batch(xs, ys):\n    # Time-Domain SpecAugment\n    for i in range(len(xs)):\n        start_time = np.random.randint(0, xs.shape[2] - 16)\n        end_time = start_time + 16\n        xs[i, :, start_time:end_time, :] += np.random.normal(0, 0.05, (xs.shape[1], 16))\n    return xs, ys\n\"\"\"\n}\n```"
+    },
+    {
+      "attempt": 3,
+      "status": "error",
+      "error": "JSONDecodeError: Expecting ',' delimiter: line 9 column 18 (char 495)",
+      "raw_response": "{\n  \"recipe_name\": \"focal_asymmetric_loss_with_spec_augment\",\n  \"loss_name\": \"Focal Asymmetric Loss with Clipped Positive Weights\",\n  \"augmentation_name\": \"Moderate SpecAugment and Background Mix\",\n  \"optimizer_name\": \"AdamW with Weight Decay\",\n  \"schedule_name\": \"Cosine Annealing with Warmup\",\n  \"initial_lr\": 0.0003,\n  \"reason\": \"Combining focal loss with asymmetric weights, moderate SpecAugment for robustness, and cosine annealing with warmup to improve generalization.\",\n  \"loss_code\": \"\"\"\nimport numpy as np\n\nclass FocalAsymmetricLoss(keras.losses.Loss):\n    def __init__(self, gamma=1.5, alpha=0.25, pos_weight=None, name='focal_asymmetric_loss'):\n        super(FocalAsymmetricLoss, self).__init__(name=name)\n        self.gamma = gamma\n        self.alpha = alpha\n        self.pos_weight = pos_weight\n\n    def call(self, y_true, y_pred):\n        y_pred = ops.clip_by_value(y_pred, 1e-7, 1 - 1e-7)\n        pt_0 = 1 - y_pred\n        pt_1 = y_pred\n        logpt_0 = ops.log(pt_0)\n        logpt_1 = ops.log(pt_1)\n        \n        if self.pos_weight is not None:\n            weight = self.pos_weight * y_true + (1 - self.pos_weight) * (1 - y_true)\n        else:\n            weight = 1.0\n        \n        loss_0 = -weight * (self.alpha * logpt_0 + (1 - self.alpha) * logpt_1) * pt_0 ** self.gamma\n        loss_1 = -weight * (self.alpha * logpt_1 + (1 - self.alpha) * logpt_0) * pt_1 ** self.gamma\n        \n        return ops.mean(loss_0 * y_true + loss_1 * (1 - y_true), axis=-1)\n\"\"\",\n  \"loss_factory\": \"FocalAsymmetricLoss(gamma=1.5, alpha=0.25, pos_weight=np.load('experiments_creative_qwen2.5-coder_7b/class_pos_weights.npy'))\",\n  \"optimizer_schedule_code\": \"\"\"\ndef get_optimizer():\n    return keras.optimizers.AdamW(learning_rate=LEARNING_RATE, weight_decay=1e-4)\n\ndef get_schedule_callbacks():\n    callbacks = [\n        keras.callbacks.CosineAnnealingLR(LEARNING_RATE, steps_per_epoch=STEPS_PER_EPOCH, total_epochs=TOTAL_TRAIN_STEPS),\n        keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6)\n    ]\n    return callbacks\n\"\"\",\n  \"augmentation_code\": \"\"\"\nimport numpy as np\n\ndef augment_batch(xs, ys):\n    # Moderate SpecAugment\n    for i in range(xs.shape[0]):\n        xs[i] = spec_augment(xs[i], time_masking=0.15, freq_masking=0.2)\n    \n    # Background Mix\n    alpha = 0.3\n    mixup_idx = np.random.permutation(xs.shape[0])\n    for i in range(xs.shape[0]):\n        xs[i] += alpha * xs[mixup_idx[i]]\n        ys[i] += alpha * ys[mixup_idx[i]]\n    \n    return xs, ys\n\ndef spec_augment(x, time_masking=0.15, freq_masking=0.2):\n    x = np.squeeze(x)\n    T, F = x.shape\n    time_mask_num = int(T * time_masking)\n    freq_mask_num = int(F * freq_masking)\n\n    for _ in range(time_mask_num):\n        t = np.random.randint(0, T - 1)\n        length = np.random.randint(1, T // 2)\n        x[t:t + length] = 0\n\n    for _ in range(freq_mask_num):\n        f = np.random.randint(0, F - 1)\n        length = np.random.randint(1, F // 2)\n        x[:, f:f + length] = 0\n    \n    return x\n\"\"\"\n}"
+    }
+  ]
+}
