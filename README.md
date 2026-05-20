@@ -174,7 +174,8 @@ This loads the weights, runs inference on the held-out validation set and prints
 
 - Competition: <https://www.kaggle.com/competitions/birdclef-2026>
 - Project report: `report.pdf`
-- Video presentation: *https://youtu.be/s2YUbrBLej4*
+- Video presentation: *[https://youtu.be/s2YUbrBLej4](https://youtu.be/TzcTMY6zkpM)*
+- Video of code running: *https://youtu.be/s2YUbrBLej4*
 
 ## Authors
 
