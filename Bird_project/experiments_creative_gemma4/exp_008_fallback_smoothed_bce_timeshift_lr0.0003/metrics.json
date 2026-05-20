@@ -1,0 +1,56 @@
+{
+  "id": 8,
+  "agent_name": "creative",
+  "llm_model": "gemma4",
+  "llm_run_id": "gemma4",
+  "experiments_dir": "experiments_creative_gemma4",
+  "recipe_name": "fallback_smoothed_bce_timeshift",
+  "recipe_signature": "00eefbecf81a",
+  "source": "fallback_variant",
+  "loss": "binary cross-entropy with label smoothing",
+  "aug": "time shift",
+  "lr": 0.0003,
+  "optimizer": "Adam",
+  "schedule": "cosine decay",
+  "reason": "Fallback free-form recipe: mild label smoothing and time shifts probe whether the baseline benefits from calibration and invariance. Deterministic fallback variant with LR scale 0.60.",
+  "baseline_winner": "crnn_lstm",
+  "baseline_macro_auc": 0.6597,
+  "baseline_val_auc": 0.2872891128063202,
+  "pruned": false,
+  "params": 2253962,
+  "epochs_run": 10,
+  "train_time_s": 5034.8,
+  "macro_auc": 0.5747,
+  "weighted_macro_auc": 0.5997,
+  "n_classes_eval": 125,
+  "aves_auc": 0.5437,
+  "amphibia_auc": 0.7969,
+  "insecta_auc": 0.5864,
+  "mammalia_auc": 0.9198,
+  "py_path": "experiments_creative_gemma4\\exp_008_fallback_smoothed_bce_timeshift_lr0.0003\\model.py",
+  "weights_path": "experiments_creative_gemma4\\exp_008_fallback_smoothed_bce_timeshift_lr0.0003\\model.keras",
+  "loss_code": "# Built-in BCE with label smoothing.",
+  "loss_factory": "keras.losses.BinaryCrossentropy(label_smoothing=0.02)",
+  "optimizer_schedule_code": "def get_optimizer():\n    lr = keras.optimizers.schedules.CosineDecay(\n        initial_learning_rate=LEARNING_RATE,\n        decay_steps=TOTAL_TRAIN_STEPS,\n        alpha=0.1,\n    )\n    return keras.optimizers.Adam(learning_rate=lr)\n\n\ndef get_schedule_callbacks():\n    return []",
+  "augmentation_code": "def augment_batch(xs, ys):\n    xs = xs.copy()\n    _, _, w, _ = xs.shape\n    max_shift = max(1, w // 12)\n    for i in range(len(xs)):\n        shift = int(np.random.randint(-max_shift, max_shift + 1))\n        xs[i] = np.roll(xs[i], shift=shift, axis=1)\n    return xs, ys",
+  "llm_attempts": [
+    {
+      "attempt": 1,
+      "status": "error",
+      "error": "ResponseError: model requires more system memory (9.8 GiB) than is available (8.1 GiB) (status code: 500)",
+      "raw_response": ""
+    },
+    {
+      "attempt": 2,
+      "status": "error",
+      "error": "ResponseError: model requires more system memory (9.8 GiB) than is available (9.1 GiB) (status code: 500)",
+      "raw_response": ""
+    },
+    {
+      "attempt": 3,
+      "status": "error",
+      "error": "ResponseError: model requires more system memory (9.8 GiB) than is available (9.1 GiB) (status code: 500)",
+      "raw_response": ""
+    }
+  ]
+}

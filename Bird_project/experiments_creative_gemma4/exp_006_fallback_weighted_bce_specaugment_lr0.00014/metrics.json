@@ -1,0 +1,56 @@
+{
+  "id": 6,
+  "agent_name": "creative",
+  "llm_model": "gemma4",
+  "llm_run_id": "gemma4",
+  "experiments_dir": "experiments_creative_gemma4",
+  "recipe_name": "fallback_weighted_bce_specaugment",
+  "recipe_signature": "b155f49a61e3",
+  "source": "fallback_variant",
+  "loss": "weighted BCE with clipped positive weights",
+  "aug": "moderate SpecAugment",
+  "lr": 0.00014,
+  "optimizer": "AdamW weight_decay 1e-4",
+  "schedule": "constant LR with ReduceLROnPlateau",
+  "reason": "Fallback free-form recipe: stabilize warm-start fine-tuning with weighted BCE, moderate masking, AdamW, and plateau-based LR cuts. Deterministic fallback variant with LR scale 0.70.",
+  "baseline_winner": "crnn_lstm",
+  "baseline_macro_auc": 0.6597,
+  "baseline_val_auc": 0.2872891128063202,
+  "pruned": false,
+  "params": 2253962,
+  "epochs_run": 10,
+  "train_time_s": 2815.9,
+  "macro_auc": 0.6594,
+  "weighted_macro_auc": 0.674,
+  "n_classes_eval": 125,
+  "aves_auc": 0.6401,
+  "amphibia_auc": 0.8384,
+  "insecta_auc": 0.6373,
+  "mammalia_auc": 0.7679,
+  "py_path": "experiments_creative_gemma4\\exp_006_fallback_weighted_bce_specaugment_lr0.00014\\model.py",
+  "weights_path": "experiments_creative_gemma4\\exp_006_fallback_weighted_bce_specaugment_lr0.00014\\model.keras",
+  "loss_code": "POS_WEIGHTS = np.load(\"experiments_creative_gemma4/class_pos_weights.npy\").astype(\"float32\")\n\nclass WeightedBCE(keras.losses.Loss):\n    def __init__(self, pos_weights, name=\"weighted_bce\"):\n        super().__init__(name=name)\n        self.pos_weights = ops.convert_to_tensor(pos_weights)\n    def call(self, y_true, y_pred):\n        y_pred = ops.clip(y_pred, 1e-7, 1.0 - 1e-7)\n        per_class = -(self.pos_weights * y_true * ops.log(y_pred)\n                      + (1.0 - y_true) * ops.log(1.0 - y_pred))\n        return ops.mean(per_class)",
+  "loss_factory": "WeightedBCE(POS_WEIGHTS)",
+  "optimizer_schedule_code": "def get_optimizer():\n    return keras.optimizers.AdamW(learning_rate=LEARNING_RATE, weight_decay=1e-4)\n\n\ndef get_schedule_callbacks():\n    return [keras.callbacks.ReduceLROnPlateau(\n        monitor=\"val_loss\", factor=0.5, patience=1, min_lr=2e-5, verbose=0\n    )]",
+  "augmentation_code": "def augment_batch(xs, ys):\n    xs = xs.copy()\n    n, h, w, _ = xs.shape\n    for i in range(n):\n        f = np.random.randint(0, max(1, h // 10))\n        if f > 0:\n            f0 = np.random.randint(0, max(1, h - f))\n            xs[i, f0:f0 + f, :, :] = 0.0\n        t = np.random.randint(0, max(1, w // 10))\n        if t > 0:\n            t0 = np.random.randint(0, max(1, w - t))\n            xs[i, :, t0:t0 + t, :] = 0.0\n    return xs, ys",
+  "llm_attempts": [
+    {
+      "attempt": 1,
+      "status": "error",
+      "error": "ResponseError: model requires more system memory (9.8 GiB) than is available (9.1 GiB) (status code: 500)",
+      "raw_response": ""
+    },
+    {
+      "attempt": 2,
+      "status": "error",
+      "error": "ResponseError: model requires more system memory (9.8 GiB) than is available (9.1 GiB) (status code: 500)",
+      "raw_response": ""
+    },
+    {
+      "attempt": 3,
+      "status": "error",
+      "error": "ResponseError: model requires more system memory (9.8 GiB) than is available (9.1 GiB) (status code: 500)",
+      "raw_response": ""
+    }
+  ]
+}
