@@ -163,12 +163,24 @@ Unrecognized keyword arguments passed to BatchNormalization: {'renorm': ...}
 
 ## Quick reproduction — best validation model (Meta agent, Gemma4, exp 9)
 
-If you only want to reproduce our best validation result (weighted macro AUC 0.7718, Aves AUC 0.731), the trained weights are committed at best_models/meta_gemma4_exp9.keras. After installing the dependencies (see Setup) and placing the BirdCLEF+ 2026 dataset in the project root, run:
+If you only want to run our selected best local model, you do not need to rerun the EDA, baselines, LLM calls, or agent loops. The trained weights are saved at:
 
-bashpython validate_submission.py --model best_models/meta_gemma4_exp9.keras
+`experiments_meta_gemma4/exp_009_plain_bce_none_lr0.001_adam_exp_decay_geo2000/model.keras`
 
-This loads the weights, runs inference on the held-out validation set and prints the per-taxon AUC breakdown — no training, no LLM, no agent loop required. To produce a Kaggle submission from this model, point MODEL_PATH at the same file in submission_notebook.ipynb and upload. Note that this is the best validation model; on the Kaggle leaderboard the best score (0.747) was achieved by the Regular agent's experiment 8, also committed at best_models/regular_gemma4_exp8.keras, since the Meta agent partially overfits the validation split.
+After installing the dependencies (see Setup) and placing the BirdCLEF+ 2026 dataset files in the project root, run:
 
+```powershell
+python validate_submission.py --model "experiments_meta_gemma4\exp_009_plain_bce_none_lr0.001_adam_exp_decay_geo2000\model.keras" --n 3
+```
+
+This loads the saved model with compile=False, runs local inference on a few soundscapes, checks that the output has the correct 234-class format, verifies probability ranges and row IDs, and writes submission_validation.csv. No training, no LLM, and no agent loop are required.
+
+To generate the interactive prediction demo from the same model, run:
+
+```powershell
+python make_predictions_demo.py --model "experiments_meta_gemma4\exp_009_plain_bce_none_lr0.001_adam_exp_decay_geo2000\model.keras" --out demo.html --json-out demo_predictions.json
+Then open demo.html in a browser.
+```
 
 ## Resources
 
